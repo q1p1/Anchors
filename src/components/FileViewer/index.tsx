@@ -30,6 +30,7 @@ const FileViewer = () => {
     width: number;
     height: number;
   } | null>(null);
+  const [projectName, setProjectName] = useState<string>("");
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -208,6 +209,21 @@ const FileViewer = () => {
             Project Setup
           </h2>
           <div className="space-y-6">
+            {/* Project Name Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Project Name
+              </label>
+              <input
+                type="text"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Enter project name"
+                required
+              />
+            </div>
+
             {/* Project Area Input */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -270,9 +286,14 @@ const FileViewer = () => {
             {/* Preview and Status */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
+                {projectName && (
+                  <div className="text-sm text-gray-600">
+                    Project: {projectName}
+                  </div>
+                )}
                 {projectArea > 0 && (
                   <div className="text-sm text-gray-600">
-                    Area: {projectArea} m²
+                    • Area: {projectArea} m²
                   </div>
                 )}
                 {fileUrl && (
@@ -283,10 +304,10 @@ const FileViewer = () => {
               </div>
               <button
                 onClick={() => setIsProjectSetup(true)}
-                disabled={!projectArea || !fileUrl}
+                disabled={!projectName || !projectArea || !fileUrl}
                 className={`px-4 py-2 rounded-md text-white transition-colors
                   ${
-                    projectArea && fileUrl
+                    projectName && projectArea && fileUrl
                       ? "bg-indigo-600 hover:bg-indigo-700"
                       : "bg-gray-400 cursor-not-allowed"
                   }`}
@@ -301,9 +322,12 @@ const FileViewer = () => {
         <div className="space-y-4">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">
-                Project Area: {projectArea} m²
-              </h2>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-800">
+                  {projectName}
+                </h2>
+                <p className="text-sm text-gray-600">Area: {projectArea} m²</p>
+              </div>
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <button
