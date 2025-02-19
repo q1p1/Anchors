@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import SelectionZone from "./SelectionZone";
 import { Anchor } from "../../types";
 import ZoneNameDialog from "./ZoneNameDialog";
+import wakecapLogo from "../../assets/WakeCap+Logo+Only+for+Black+BG.png";
 const ANCHOR_DIAMETER = 0.05; // meters
 
 const FileViewer = () => {
@@ -189,6 +190,17 @@ const FileViewer = () => {
 
   return (
     <div className="p-4 space-y-4">
+      <div className="flex justify-between items-center mb-6">
+        <img
+          src={wakecapLogo}
+          alt="WakeCap Logo"
+          className="h-12 object-contain"
+        />
+        <h1 className="text-2xl font-bold text-gray-800">
+          Anchor Distribution Tool
+        </h1>
+      </div>
+
       {!isProjectSetup || !fileUrl ? (
         // Project Setup and File Upload Combined Phase
         <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto">
