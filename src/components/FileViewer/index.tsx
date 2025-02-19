@@ -35,6 +35,7 @@ const FileViewer = () => {
   const [currentMode, setCurrentMode] = useState<"none" | "drawing" | "manual">(
     "none"
   );
+  const [draggedAnchor, setDraggedAnchor] = useState<string | null>(null);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -241,6 +242,47 @@ const FileViewer = () => {
         },
       ]);
     }
+  };
+
+  const handleDeleteZone = (zoneId: string) => {
+    setDistributionZones((prev) => prev.filter((zone) => zone.id !== zoneId));
+    distributeAnchors();
+  };
+
+  const handleAnchorDragStart = (anchorId: string) => {
+    setDraggedAnchor(anchorId);
+  };
+
+  const handleAnchorDrag = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!draggedAnchor || !imageRef.current) return;
+
+    const containerRect =
+      imageRef.current.parentElement?.getBoundingClientRect();
+    if (!containerRect) return;
+
+    const x = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+    const y = ((e.clientY - containerRect.top) / containerRect.height) * 100;
+
+    const isInsideZone = distributionZones.some((zone) => {
+      return (
+        x >= zone.x &&
+        x <= zone.x + zone.width &&
+        y >= zone.y &&
+        y <= zone.y + zone.height
+      );
+    });
+
+    if (isInsideZone) {
+      setAnchors((prev) =>
+        prev.map((anchor) =>
+          anchor.id === draggedAnchor ? { ...anchor, x, y } : anchor
+        )
+      );
+    }
+  };
+
+  const handleAnchorDragEnd = () => {
+    setDraggedAnchor(null);
   };
 
   return (
@@ -579,6 +621,9 @@ const FileViewer = () => {
             <div
               className="relative w-full h-[600px] border rounded-lg overflow-hidden"
               onClick={handleManualAnchorAdd}
+              onMouseMove={handleAnchorDrag}
+              onMouseUp={handleAnchorDragEnd}
+              onMouseLeave={handleAnchorDragEnd}
               style={{
                 cursor: isManualMode ? "crosshair" : "default",
                 userSelect: "none",
@@ -594,10 +639,10 @@ const FileViewer = () => {
                 <SelectionZone onZoneSelected={handleZoneSelection} />
               )}
               {showZones &&
-                distributionZones.map((zone, index) => (
+                distributionZones.map((zone) => (
                   <div
-                    key={`zone-${index}`}
-                    className="absolute border-2 border-green-500 bg-green-500/20"
+                    key={zone.id}
+                    className="absolute border-2 border-green-500 bg-green-500/20 group"
                     style={{
                       left: `${zone.x}%`,
                       top: `${zone.y}%`,
@@ -605,20 +650,47 @@ const FileViewer = () => {
                       height: `${zone.height}%`,
                     }}
                   >
-                    <div className="absolute -top-7 left-0 text-green-700 font-medium text-lg opacity-70 whitespace-nowrap">
-                      {zone.name}
+                    <div className="absolute -top-7 left-0 flex items-center gap-2">
+                      <span className="text-green-700 font-medium text-lg opacity-70 whitespace-nowrap">
+                        {zone.name}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteZone(zone.id);
+                        }}
+                        className="hidden group-hover:flex items-center justify-center w-6 h-6 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 ))}
               {anchors.map((anchor) => (
                 <div
                   key={anchor.id}
-                  className={`absolute w-3 h-3 rounded-full transform -translate-x-1/2 -translate-y-1/2
-                    ${anchor.isManual ? "bg-purple-500 ring-2 ring-purple-300" : "bg-blue-500"}`}
+                  className={`absolute w-3 h-3 rounded-full transform -translate-x-1/2 -translate-y-1/2 cursor-move
+                    ${anchor.isManual ? "bg-purple-500 ring-2 ring-purple-300" : "bg-blue-500"}
+                    ${draggedAnchor === anchor.id ? "ring-2 ring-yellow-300 scale-125" : ""}
+                    hover:ring-2 hover:ring-yellow-300 hover:scale-110 transition-all`}
                   style={{
                     left: `${anchor.x}%`,
                     top: `${anchor.y}%`,
                   }}
+                  onMouseDown={() => handleAnchorDragStart(anchor.id)}
+                  onMouseUp={handleAnchorDragEnd}
                 />
               ))}
             </div>
