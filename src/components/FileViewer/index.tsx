@@ -3,6 +3,7 @@ import ProjectSetup from "./ProjectSetup";
 import FileInput from "./FileInput";
 import SelectionZone from "./SelectionZone";
 import { Anchor } from "../../types";
+import ZoneNameDialog from "./ZoneNameDialog";
 const ANCHOR_DIAMETER = 5; // meters
 
 const FileViewer = () => {
@@ -12,16 +13,24 @@ const FileViewer = () => {
   const [anchors, setAnchors] = useState<Anchor[]>([]);
   const imageRef = useRef<HTMLImageElement>(null);
   const [isDrawingZone, setIsDrawingZone] = useState<boolean>(false);
-  const [distributionZones, setDistributionZones] = useState<{
-    id: string;
-    name: string;
+  const [distributionZones, setDistributionZones] = useState<
+    {
+      id: string;
+      name: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }[]
+  >([]);
+  const [showZones, setShowZones] = useState<boolean>(true);
+  const [additionalAnchors, setAdditionalAnchors] = useState<number>(0);
+  const [pendingZone, setPendingZone] = useState<{
     x: number;
     y: number;
     width: number;
     height: number;
-  }[]>([]);
-  const [showZones, setShowZones] = useState<boolean>(true);
-  const [additionalAnchors, setAdditionalAnchors] = useState<number>(0);
+  } | null>(null);
 
   const handleProjectSetup = (area: number) => {
     setProjectArea(area);
@@ -47,19 +56,20 @@ const FileViewer = () => {
     width: number;
     height: number;
   }) => {
-    const zoneName = prompt(
-      "Enter zone name:",
-      `Zone ${distributionZones.length + 1}`
-    );
-    if (zoneName) {
+    setPendingZone(zone);
+  };
+
+  const handleZoneNameConfirm = (name: string) => {
+    if (pendingZone) {
       setDistributionZones((prev) => [
         ...prev,
         {
           id: `zone-${prev.length}`,
-          name: zoneName,
-          ...zone,
+          name,
+          ...pendingZone,
         },
       ]);
+      setPendingZone(null);
     }
   };
 
@@ -285,6 +295,13 @@ const FileViewer = () => {
               ))}
             </div>
           </div>
+          {pendingZone && (
+            <ZoneNameDialog
+              defaultName={`Zone ${distributionZones.length + 1}`}
+              onConfirm={handleZoneNameConfirm}
+              onCancel={() => setPendingZone(null)}
+            />
+          )}
         </div>
       )}
     </div>
