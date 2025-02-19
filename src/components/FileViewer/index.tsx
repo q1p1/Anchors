@@ -1,10 +1,8 @@
 import React, { useState, useRef } from "react";
-import ProjectSetup from "./ProjectSetup";
-import FileInput from "./FileInput";
 import SelectionZone from "./SelectionZone";
 import { Anchor } from "../../types";
 import ZoneNameDialog from "./ZoneNameDialog";
-const ANCHOR_DIAMETER = 5; // meters
+const ANCHOR_DIAMETER = 0.05; // meters
 
 const FileViewer = () => {
   const [projectArea, setProjectArea] = useState<number>(0);
@@ -31,11 +29,6 @@ const FileViewer = () => {
     width: number;
     height: number;
   } | null>(null);
-
-  const handleProjectSetup = (area: number) => {
-    setProjectArea(area);
-    setIsProjectSetup(true);
-  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -191,21 +184,98 @@ const FileViewer = () => {
 
   return (
     <div className="p-4 space-y-4">
-      {!isProjectSetup ? (
-        // Project Setup Phase
-        <ProjectSetup onProjectSetup={handleProjectSetup} />
-      ) : !fileUrl ? (
-        // File Upload Phase
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">
-              Project Area: {projectArea} m²
-            </h2>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
+      {!isProjectSetup || !fileUrl ? (
+        // Project Setup and File Upload Combined Phase
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+            Project Setup
+          </h2>
+          <div className="space-y-6">
+            {/* Project Area Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Project Area (m²)
+              </label>
+              <div className="flex gap-4">
+                <input
+                  type="number"
+                  min="1"
+                  value={projectArea || ""}
+                  onChange={(e) => setProjectArea(Number(e.target.value))}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Enter project area"
+                />
+                <span className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
+                  m²
+                </span>
+              </div>
+            </div>
+
+            {/* Blueprint Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Upload Project Blueprint
               </label>
-              <FileInput onFileUpload={handleFileUpload} />
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-indigo-500 transition-colors">
+                <div className="space-y-1 text-center">
+                  <svg
+                    className="mx-auto h-12 w-12 text-gray-400"
+                    stroke="currentColor"
+                    fill="none"
+                    viewBox="0 0 48 48"
+                  >
+                    <path
+                      d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4-4m4-4h8m-4-4v8m-12 4h.02"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <div className="flex text-sm text-gray-600">
+                    <label className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                      <span>Upload a file</span>
+                      <input
+                        type="file"
+                        className="sr-only"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                      />
+                    </label>
+                    <p className="pl-1">or drag and drop</p>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    PNG, JPG, GIF up to 10MB
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Preview and Status */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                {projectArea > 0 && (
+                  <div className="text-sm text-gray-600">
+                    Area: {projectArea} m²
+                  </div>
+                )}
+                {fileUrl && (
+                  <div className="text-sm text-gray-600">
+                    • Blueprint uploaded
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setIsProjectSetup(true)}
+                disabled={!projectArea || !fileUrl}
+                className={`px-4 py-2 rounded-md text-white transition-colors
+                  ${
+                    projectArea && fileUrl
+                      ? "bg-indigo-600 hover:bg-indigo-700"
+                      : "bg-gray-400 cursor-not-allowed"
+                  }`}
+              >
+                Continue
+              </button>
             </div>
           </div>
         </div>
@@ -217,42 +287,125 @@ const FileViewer = () => {
               <h2 className="text-xl font-semibold">
                 Project Area: {projectArea} m²
               </h2>
-              <div className="space-x-4">
-                <button
-                  onClick={handleStartDrawingZone}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                >
-                  Add Distribution Zone
-                </button>
-                <button
-                  onClick={() => setShowZones(!showZones)}
-                  className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
-                >
-                  {showZones ? "Hide" : "Show"} Zones
-                </button>
-                <button
-                  onClick={handleDistribute}
-                  disabled={distributionZones.length === 0}
-                  className={`px-4 py-2 text-white rounded-md transition-colors ${
-                    distributionZones.length > 0
-                      ? "bg-blue-600 hover:bg-blue-700"
-                      : "bg-gray-400 cursor-not-allowed"
-                  }`}
-                >
-                  Distribute Anchors
-                </button>
-                {anchors.length > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={handleAddAnchors}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                    onClick={handleStartDrawingZone}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
                   >
-                    Add More Anchors (+5)
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Add Zone
                   </button>
-                )}
+
+                  <button
+                    onClick={() => setShowZones(!showZones)}
+                    className={`px-4 py-2 text-white rounded-md transition-colors flex items-center gap-2
+                      ${showZones ? "bg-indigo-600 hover:bg-indigo-700" : "bg-gray-500 hover:bg-gray-600"}`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                    {showZones ? "Hide Zones" : "Show Zones"}
+                  </button>
+                </div>
+
+                <div className="h-8 w-px bg-gray-300"></div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleDistribute}
+                    disabled={distributionZones.length === 0}
+                    className={`px-4 py-2 text-white rounded-md transition-colors flex items-center gap-2
+                      ${
+                        distributionZones.length > 0
+                          ? "bg-indigo-600 hover:bg-indigo-700"
+                          : "bg-gray-400 cursor-not-allowed"
+                      }`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                    Distribute Anchors
+                  </button>
+
+                  {anchors.length > 0 && (
+                    <button
+                      onClick={handleAddAnchors}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                        />
+                      </svg>
+                      Add More (+5)
+                    </button>
+                  )}
+                </div>
+
                 {anchors.length > 0 && (
-                  <span className="text-gray-600">
-                    Total Anchors: {anchors.length}
-                  </span>
+                  <div className="px-4 py-2 bg-gray-100 rounded-md text-gray-700 flex items-center gap-2">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
+                      />
+                    </svg>
+                    <span>Anchors: {anchors.length}</span>
+                  </div>
                 )}
               </div>
             </div>
