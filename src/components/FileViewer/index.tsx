@@ -3,7 +3,7 @@ import ProjectSetup from "./ProjectSetup";
 import FileInput from "./FileInput";
 import SelectionZone from "./SelectionZone";
 import { Anchor } from "../../types";
-const ANCHOR_DIAMETER = 7.1; // meters
+const ANCHOR_DIAMETER = 5; // meters
 
 const FileViewer = () => {
   const [projectArea, setProjectArea] = useState<number>(0);
@@ -21,6 +21,7 @@ const FileViewer = () => {
     }>
   >([]);
   const [showZones, setShowZones] = useState<boolean>(true);
+  const [additionalAnchors, setAdditionalAnchors] = useState<number>(0);
 
   const handleProjectSetup = (area: number) => {
     setProjectArea(area);
@@ -66,88 +67,103 @@ const FileViewer = () => {
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
-    // Calculate aspect ratios
+    // Calculate aspect ratios and display dimensions
     const imageRatio = imageWidth / imageHeight;
     const containerRatio = containerWidth / containerHeight;
 
     // Calculate display dimensions
     let displayWidth: number;
     let displayHeight: number;
-    let offsetX: number;
-    let offsetY: number;
 
     if (imageRatio > containerRatio) {
-      // Image is wider
       displayWidth = containerWidth;
       displayHeight = containerWidth / imageRatio;
-      offsetX = 0;
-      offsetY = (containerHeight - displayHeight) / 2;
     } else {
-      // Image is taller
       displayHeight = containerHeight;
       displayWidth = containerHeight * imageRatio;
-      offsetX = (containerWidth - displayWidth) / 2;
-      offsetY = 0;
     }
 
-    // Calculate scale (meters/pixel)
+    // Calculate scale and minimum distance
     const metersPerPixel = Math.sqrt(projectArea / (imageWidth * imageHeight));
     const minDistancePixels = ANCHOR_DIAMETER / metersPerPixel;
-    const requiredAnchors = Math.ceil(projectArea / 75);
-
     const newAnchors: Anchor[] = [];
 
-    const isValidPosition = (x: number, y: number): boolean => {
-      return newAnchors.every((anchor) => {
-        const dx = (anchor.x / 100) * displayWidth - x;
-        const dy = (anchor.y / 100) * displayHeight - y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        return distance >= minDistancePixels;
-      });
-    };
+    // Calculate total area of all zones
+    const totalZoneArea = distributionZones.reduce((sum, zone) => {
+      return sum + zone.width * zone.height;
+    }, 0);
 
-    let attempts = 0;
-    const maxAttempts = requiredAnchors * 200;
+    // Calculate anchors per zone based on area proportion
+    distributionZones.forEach((zone) => {
+      const zoneArea = zone.width * zone.height;
+      const zoneAnchors = Math.ceil(
+        (zoneArea / totalZoneArea) * (projectArea / 75 + additionalAnchors)
+      );
 
-    while (newAnchors.length < requiredAnchors && attempts < maxAttempts) {
-      // Select random zone
-      const randomZone =
-        distributionZones[Math.floor(Math.random() * distributionZones.length)];
+      // Calculate optimal grid spacing for this zone
+      const zoneWidth = (zone.width / 100) * displayWidth;
+      const zoneHeight = (zone.height / 100) * displayHeight;
 
-      // Generate random position within selected zone
-      const x =
-        offsetX +
-        (randomZone.x / 100) * displayWidth +
-        Math.random() * (randomZone.width / 100) * displayWidth;
-      const y =
-        offsetY +
-        (randomZone.y / 100) * displayHeight +
-        Math.random() * (randomZone.height / 100) * displayHeight;
+      const aspectRatio = zoneWidth / zoneHeight;
+      const rows = Math.floor(Math.sqrt(zoneAnchors / aspectRatio));
+      const cols = Math.ceil(zoneAnchors / rows);
 
-      const xPercent = ((x - offsetX) / displayWidth) * 100;
-      const yPercent = ((y - offsetY) / displayHeight) * 100;
+      const spacingX = zoneWidth / (cols + 1);
+      const spacingY = zoneHeight / (rows + 1);
 
-      // Check if position is within zone bounds
-      if (
-        xPercent >= randomZone.x &&
-        xPercent <= randomZone.x + randomZone.width &&
-        yPercent >= randomZone.y &&
-        yPercent <= randomZone.y + randomZone.height
-      ) {
-        if (isValidPosition(x, y)) {
-          newAnchors.push({
-            id: `anchor-${newAnchors.length}`,
-            x: xPercent,
-            y: yPercent,
-            diameter: ANCHOR_DIAMETER,
+      // Create hexagonal grid pattern
+      for (let row = 1; row <= rows; row++) {
+        const isEvenRow = row % 2 === 0;
+        const colOffset = isEvenRow ? spacingX / 2 : 0;
+        const colsInRow = isEvenRow ? cols - 1 : cols;
+
+        for (let col = 1; col <= colsInRow; col++) {
+          const x =
+            zone.x + ((colOffset + col * spacingX) / displayWidth) * 100;
+          const y = zone.y + ((row * spacingY) / displayHeight) * 100;
+
+          // Add some controlled randomness to avoid perfect grid
+          const jitterX =
+            (Math.random() - 0.5) * (spacingX / displayWidth) * 20;
+          const jitterY =
+            (Math.random() - 0.5) * (spacingY / displayHeight) * 20;
+
+          // Ensure point stays within zone bounds
+          const finalX = Math.max(
+            zone.x,
+            Math.min(zone.x + zone.width, x + jitterX)
+          );
+          const finalY = Math.max(
+            zone.y,
+            Math.min(zone.y + zone.height, y + jitterY)
+          );
+
+          // Check minimum distance from other anchors
+          const isFarEnough = newAnchors.every((anchor) => {
+            const dx = ((anchor.x - finalX) * displayWidth) / 100;
+            const dy = ((anchor.y - finalY) * displayHeight) / 100;
+            return Math.sqrt(dx * dx + dy * dy) >= minDistancePixels;
           });
+
+          if (isFarEnough) {
+            newAnchors.push({
+              id: `anchor-${newAnchors.length}`,
+              x: finalX,
+              y: finalY,
+              diameter: ANCHOR_DIAMETER,
+            });
+          }
         }
       }
-      attempts++;
-    }
+    });
 
     setAnchors(newAnchors);
     setShowZones(false); // Hide zones after distribution
+  };
+
+  const handleAddAnchors = () => {
+    setAdditionalAnchors((prev) => prev + 5);
+    distributeAnchors();
   };
 
   return (
@@ -202,6 +218,19 @@ const FileViewer = () => {
                 >
                   Distribute Anchors
                 </button>
+                {anchors.length > 0 && (
+                  <button
+                    onClick={handleAddAnchors}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                  >
+                    Add More Anchors (+5)
+                  </button>
+                )}
+                {anchors.length > 0 && (
+                  <span className="text-gray-600">
+                    Total Anchors: {anchors.length}
+                  </span>
+                )}
               </div>
             </div>
             <div className="relative w-full h-[600px] border rounded-lg overflow-hidden">
