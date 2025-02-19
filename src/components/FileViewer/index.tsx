@@ -285,6 +285,212 @@ const FileViewer = () => {
     setDraggedAnchor(null);
   };
 
+  const handlePrint = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const content = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${projectName} - Blueprint</title>
+          <style>
+            @media print {
+              @page { margin: 20mm; }
+              body { margin: 0; }
+              .container { page-break-inside: avoid; }
+            }
+            .container {
+              font-family: system-ui, -apple-system, sans-serif;
+              padding: 20px;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 20px;
+              padding-bottom: 20px;
+              border-bottom: 1px solid #ccc;
+            }
+            .logo { height: 50px; }
+            .title {
+              font-size: 24px;
+              font-weight: bold;
+              color: #333;
+            }
+            .info {
+              margin: 20px 0;
+              color: #666;
+            }
+            .zones {
+              margin: 20px 0;
+              padding: 15px;
+              background: #f9fafb;
+              border-radius: 8px;
+            }
+            .blueprint-container {
+              position: relative;
+              margin: 20px 0;
+              border: 1px solid #ccc;
+              border-radius: 8px;
+              overflow: hidden;
+            }
+            .blueprint {
+              width: 100%;
+              height: auto;
+            }
+            .zone-marker {
+              position: absolute;
+              border: 1px dashed #22c55e;
+              background: transparent;
+              z-index: 1;
+            }
+            .zone-label {
+              position: absolute;
+              background: white;
+              color: #22c55e;
+              border: 1px solid #22c55e;
+              padding: 2px 8px;
+              border-radius: 4px;
+              font-size: 12px;
+              font-weight: 600;
+              transform: translate(0, -150%);
+              z-index: 2;
+            }
+            .anchor-dot {
+              position: absolute;
+              width: 8px;
+              height: 8px;
+              border-radius: 50%;
+              transform: translate(-50%, -50%);
+              z-index: 2;
+              box-shadow: 0 0 0 2px white;
+            }
+            .anchor-dot.manual {
+              background-color: #a855f7;
+              box-shadow: 0 0 0 2px white, 0 0 0 3px #a855f7;
+            }
+            .anchor-dot.auto {
+              background-color: #3b82f6;
+              box-shadow: 0 0 0 2px white, 0 0 0 3px #3b82f6;
+            }
+            .anchor-label {
+              position: absolute;
+              font-size: 10px;
+              color: #1f2937;
+              font-weight: 600;
+              transform: translate(-50%, -150%);
+              background: white;
+              padding: 2px 4px;
+              border-radius: 4px;
+              white-space: nowrap;
+              border: 1px solid #e5e7eb;
+              z-index: 2;
+            }
+            .disclaimer {
+              margin-top: 20px;
+              padding: 12px 16px;
+              background-color: #fff7ed;
+              border: 1px solid #fdba74;
+              border-radius: 8px;
+              color: #c2410c;
+              font-size: 14px;
+              line-height: 1.5;
+            }
+            .disclaimer-icon {
+              display: inline-block;
+              width: 20px;
+              height: 20px;
+              margin-right: 8px;
+              vertical-align: middle;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <img src="${wakecapLogo}" alt="WakeCap Logo" class="logo" />
+              <div class="title">${projectName}</div>
+            </div>
+            
+            <div class="info">
+              <div>Project Area: ${projectArea} m²</div>
+              <div>Total Anchors: ${anchors.length}</div>
+            </div>
+
+            <div class="zones">
+              <h3>Distribution Zones:</h3>
+              ${distributionZones
+                .map(
+                  (zone) => `
+                  <div>
+                    ${zone.name}: ${
+                      anchors.filter(
+                        (a) =>
+                          a.x >= zone.x &&
+                          a.x <= zone.x + zone.width &&
+                          a.y >= zone.y &&
+                          a.y <= zone.y + zone.height
+                      ).length
+                    } anchors
+                  </div>
+                `
+                )
+                .join("")}
+            </div>
+
+            <div class="blueprint-container">
+              <img src="${fileUrl}" class="blueprint" />
+              ${distributionZones
+                .map(
+                  (zone) => `
+                  <div class="zone-marker" style="
+                    left: ${zone.x}%;
+                    top: ${zone.y}%;
+                    width: ${zone.width}%;
+                    height: ${zone.height}%;
+                  ">
+                    <div class="zone-label">${zone.name}</div>
+                  </div>
+                `
+                )
+                .join("")}
+              
+              ${anchors
+                .map(
+                  (anchor, index) => `
+                  <div class="anchor-dot ${anchor.isManual ? "manual" : "auto"}"
+                    style="left: ${anchor.x}%; top: ${anchor.y}%;">
+                  </div>
+                  <div class="anchor-label"
+                    style="left: ${anchor.x}%; top: ${anchor.y}%;">
+                    ${index + 1}
+                  </div>
+                `
+                )
+                .join("")}
+            </div>
+
+            <div class="disclaimer">
+              <svg class="disclaimer-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+              <strong>Disclaimer:</strong> The locations of the anchors may differ in reality, but this does not depend entirely on this blueprint.
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.print();
+    };
+  };
+
   return (
     <div className="p-4 space-y-4">
       <div className="flex justify-between items-center mb-6">
@@ -702,6 +908,27 @@ const FileViewer = () => {
               onCancel={() => setPendingZone(null)}
             />
           )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center gap-2"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                />
+              </svg>
+              Print Blueprint
+            </button>
+          </div>
         </div>
       )}
     </div>
