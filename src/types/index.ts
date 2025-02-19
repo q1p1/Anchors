@@ -3,6 +3,7 @@ export interface Anchor {
   x: number;
   y: number;
   diameter: number;
+  isManual?: boolean;
 }
 
 export interface AnchorProps {

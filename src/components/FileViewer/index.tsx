@@ -31,6 +31,10 @@ const FileViewer = () => {
     height: number;
   } | null>(null);
   const [projectName, setProjectName] = useState<string>("");
+  const [isManualMode, setIsManualMode] = useState<boolean>(false);
+  const [currentMode, setCurrentMode] = useState<"none" | "drawing" | "manual">(
+    "none"
+  );
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -41,8 +45,17 @@ const FileViewer = () => {
   };
 
   const handleStartDrawingZone = () => {
+    setCurrentMode("drawing");
     setIsDrawingZone(true);
+    setIsManualMode(false);
     setAnchors([]);
+  };
+
+  const handleToggleManualMode = () => {
+    const newMode = currentMode === "manual" ? "none" : "manual";
+    setCurrentMode(newMode);
+    setIsManualMode(newMode === "manual");
+    setIsDrawingZone(false);
   };
 
   const handleZoneSelection = (zone: {
@@ -52,6 +65,8 @@ const FileViewer = () => {
     height: number;
   }) => {
     setPendingZone(zone);
+    setCurrentMode("none");
+    setIsDrawingZone(false);
   };
 
   const handleZoneNameConfirm = (name: string) => {
@@ -169,14 +184,20 @@ const FileViewer = () => {
               x: finalX,
               y: finalY,
               diameter: ANCHOR_DIAMETER,
+              isManual: false,
             });
           }
         }
       }
     });
+    // Keep manual anchors
+    const manualAnchors = anchors.filter(
+      (anchor) => "isManual" in anchor && anchor.isManual
+    );
 
-    setAnchors(newAnchors);
-    setShowZones(false); // Hide zones after distribution
+    // Add new anchors
+    setAnchors([...manualAnchors, ...newAnchors]);
+    setShowZones(false);
   };
 
   const handleAddAnchors = () => {
@@ -187,6 +208,39 @@ const FileViewer = () => {
   const handleReduceAnchors = () => {
     setAdditionalAnchors((prev) => Math.max(0, prev - 5));
     distributeAnchors();
+  };
+
+  const handleManualAnchorAdd = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isManualMode || !imageRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const containerRect = e.currentTarget.getBoundingClientRect();
+
+    const x = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+    const y = ((e.clientY - containerRect.top) / containerRect.height) * 100;
+
+    const isInsideZone = distributionZones.some((zone) => {
+      return (
+        x >= zone.x &&
+        x <= zone.x + zone.width &&
+        y >= zone.y &&
+        y <= zone.y + zone.height
+      );
+    });
+
+    if (isInsideZone) {
+      setAnchors((prev) => [
+        ...prev,
+        {
+          id: `manual-anchor-${Date.now()}`,
+          x,
+          y,
+          diameter: ANCHOR_DIAMETER,
+          isManual: true,
+        },
+      ]);
+    }
   };
 
   return (
@@ -332,7 +386,15 @@ const FileViewer = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleStartDrawingZone}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                    disabled={currentMode === "manual"}
+                    className={`px-4 py-2 text-white rounded-md transition-colors flex items-center gap-2
+                      ${
+                        currentMode === "drawing"
+                          ? "bg-green-600 hover:bg-green-700"
+                          : currentMode === "manual"
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : "bg-indigo-600 hover:bg-indigo-700"
+                      }`}
                   >
                     <svg
                       className="w-5 h-5"
@@ -347,13 +409,20 @@ const FileViewer = () => {
                         d="M12 4v16m8-8H4"
                       />
                     </svg>
-                    Add Zone
+                    {currentMode === "drawing" ? "Drawing Zone..." : "Add Zone"}
                   </button>
 
                   <button
-                    onClick={() => setShowZones(!showZones)}
+                    onClick={handleToggleManualMode}
+                    disabled={currentMode === "drawing"}
                     className={`px-4 py-2 text-white rounded-md transition-colors flex items-center gap-2
-                      ${showZones ? "bg-indigo-600 hover:bg-indigo-700" : "bg-gray-500 hover:bg-gray-600"}`}
+                      ${
+                        currentMode === "manual"
+                          ? "bg-purple-600 hover:bg-purple-700"
+                          : currentMode === "drawing"
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : "bg-gray-500 hover:bg-gray-600"
+                      }`}
                   >
                     <svg
                       className="w-5 h-5"
@@ -365,16 +434,12 @@ const FileViewer = () => {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
                       />
                     </svg>
-                    {showZones ? "Hide Zones" : "Show Zones"}
+                    {currentMode === "manual"
+                      ? "Exit Manual Mode"
+                      : "Add Manual Anchors"}
                   </button>
                 </div>
 
@@ -462,6 +527,35 @@ const FileViewer = () => {
                   )}
                 </div>
 
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowZones(!showZones)}
+                    className={`px-4 py-2 text-white rounded-md transition-colors flex items-center gap-2
+                      ${showZones ? "bg-indigo-600 hover:bg-indigo-700" : "bg-gray-500 hover:bg-gray-600"}`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                    {showZones ? "Hide Zones" : "Show Zones"}
+                  </button>
+                </div>
+
                 {anchors.length > 0 && (
                   <div className="px-4 py-2 bg-gray-100 rounded-md text-gray-700 flex items-center gap-2">
                     <svg
@@ -482,11 +576,18 @@ const FileViewer = () => {
                 )}
               </div>
             </div>
-            <div className="relative w-full h-[600px] border rounded-lg overflow-hidden">
+            <div
+              className="relative w-full h-[600px] border rounded-lg overflow-hidden"
+              onClick={handleManualAnchorAdd}
+              style={{
+                cursor: isManualMode ? "crosshair" : "default",
+                userSelect: "none",
+              }}
+            >
               <img
                 ref={imageRef}
                 src={fileUrl}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain pointer-events-none"
                 alt="Blueprint"
               />
               {isDrawingZone && (
@@ -512,7 +613,8 @@ const FileViewer = () => {
               {anchors.map((anchor) => (
                 <div
                   key={anchor.id}
-                  className="absolute w-3 h-3 bg-blue-500 rounded-full transform -translate-x-1/2 -translate-y-1/2"
+                  className={`absolute w-3 h-3 rounded-full transform -translate-x-1/2 -translate-y-1/2
+                    ${anchor.isManual ? "bg-purple-500 ring-2 ring-purple-300" : "bg-blue-500"}`}
                   style={{
                     left: `${anchor.x}%`,
                     top: `${anchor.y}%`,

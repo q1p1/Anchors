@@ -1,9 +1,10 @@
 export interface Anchor {
+  isManual: unknown;
   id: string;
   x: number;
   y: number;
   diameter: number;
-  isDensityAnchor?: boolean; // إضافة خاصية لتمييز نقاط الكثافة
+  isDensityAnchor?: boolean;
 }
 
 export interface ExclusionZone {
@@ -36,11 +37,11 @@ export interface FileDisplayProps {
 
 export interface DensityZone {
   id: string;
-  name: string; // إضافة اسم المنطقة
+  name: string;
   x: number;
   y: number;
   width: number;
   height: number;
-  workers: number; // عدد العمال في المنطقة
-  area?: number; // مساحة المنطقة بالمتر المربع
+  workers: number;
+  area?: number;
 }
