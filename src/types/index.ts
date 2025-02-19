@@ -18,3 +18,12 @@ export interface FileDisplayProps {
   fileUrl: string;
   onLoad: () => void;
 }
+
+export interface DistributionZone {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  name: string;
+}

@@ -12,14 +12,14 @@ const FileViewer = () => {
   const [anchors, setAnchors] = useState<Anchor[]>([]);
   const imageRef = useRef<HTMLImageElement>(null);
   const [isDrawingZone, setIsDrawingZone] = useState<boolean>(false);
-  const [distributionZones, setDistributionZones] = useState<
-    Array<{
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    }>
-  >([]);
+  const [distributionZones, setDistributionZones] = useState<{
+    id: string;
+    name: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }[]>([]);
   const [showZones, setShowZones] = useState<boolean>(true);
   const [additionalAnchors, setAdditionalAnchors] = useState<number>(0);
 
@@ -47,7 +47,20 @@ const FileViewer = () => {
     width: number;
     height: number;
   }) => {
-    setDistributionZones((prev) => [...prev, zone]);
+    const zoneName = prompt(
+      "Enter zone name:",
+      `Zone ${distributionZones.length + 1}`
+    );
+    if (zoneName) {
+      setDistributionZones((prev) => [
+        ...prev,
+        {
+          id: `zone-${prev.length}`,
+          name: zoneName,
+          ...zone,
+        },
+      ]);
+    }
   };
 
   const handleDistribute = () => {
@@ -254,7 +267,11 @@ const FileViewer = () => {
                       width: `${zone.width}%`,
                       height: `${zone.height}%`,
                     }}
-                  />
+                  >
+                    <div className="absolute -top-7 left-0 text-green-700 font-medium text-lg opacity-70 whitespace-nowrap">
+                      {zone.name}
+                    </div>
+                  </div>
                 ))}
               {anchors.map((anchor) => (
                 <div
